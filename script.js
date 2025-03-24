@@ -2,6 +2,7 @@
 let targetNumber;
 let attemptsLeft;
 let extraAttemptsUsed = false;
+let sdkInitialized = false;
 
 // Получаем элементы DOM
 const elements = {
@@ -23,11 +24,13 @@ function initOKSDK() {
     return new Promise((resolve) => {
         if (typeof OKSDK !== 'undefined') {
             OKSDK.init({
-                appId: '512002430595',  // Замените на реальный ID
-                appKey: 'CEIHBKLGDIHBABABA'  // Замените на реальный ключ
+                appId: '512002430595',
+                appKey: 'CEIHBKLGDIHBABABA'
+            }, () => {
+                console.log('OK SDK успешно инициализирован');
+                sdkInitialized = true;
+                resolve(true);
             });
-            console.log('OK SDK успешно инициализирован');
-            resolve(true);
         } else {
             console.warn('OK SDK не загрузился. Игра будет работать без рекламы');
             resolve(false);
@@ -35,15 +38,46 @@ function initOKSDK() {
     });
 }
 
-// Показать рекламу перед игрой
-function showAd(callback) {
-    if (typeof OKSDK !== 'undefined' && OKSDK.Advert) {
+// Показать полноэкранную рекламу
+function showFullscreenAd(callback) {
+    if (sdkInitialized && OKSDK.Advert) {
         OKSDK.Advert.showFullscreen({
-            onClose: () => callback(),
-            onError: () => callback()
+            onClose: () => {
+                console.log('Fullscreen ad closed');
+                if (callback) callback();
+            },
+            onError: (error) => {
+                console.log('Fullscreen ad error:', error);
+                if (callback) callback();
+            }
         });
     } else {
-        callback();
+        console.log('Показ рекламы пропущен (SDK не инициализирован)');
+        if (callback) callback();
+    }
+}
+
+// Показать рекламу с вознаграждением
+function showRewardedAd(callback) {
+    if (sdkInitialized && OKSDK.Advert) {
+        OKSDK.Advert.showRewarded({
+            onOpen: () => console.log('Rewarded ad opened'),
+            onRewarded: () => {
+                console.log('Rewarded ad completed');
+                if (callback) callback(true);
+            },
+            onClose: () => {
+                console.log('Rewarded ad closed');
+                if (callback) callback(false);
+            },
+            onError: (error) => {
+                console.log('Rewarded ad error:', error);
+                if (callback) callback(false);
+            }
+        });
+    } else {
+        console.log('Показ рекламы с вознаграждением пропущен (SDK не инициализирован)');
+        if (callback) callback(false);
     }
 }
 
@@ -101,22 +135,31 @@ function showScreen(screen) {
 
 // Добавление дополнительных попыток
 function addExtraAttempts() {
-    attemptsLeft += 3;
-    elements.attemptsDisplay.textContent = attemptsLeft;
-    elements.extraAttemptsButton.classList.add('hidden');
-    extraAttemptsUsed = true;
+    showRewardedAd((success) => {
+        if (success) {
+            attemptsLeft += 3;
+            elements.attemptsDisplay.textContent = attemptsLeft;
+            elements.extraAttemptsButton.classList.add('hidden');
+            extraAttemptsUsed = true;
+        } else {
+            alert('Не удалось загрузить рекламу. Попробуйте позже.');
+        }
+    });
 }
 
 // Инициализация игры
 document.addEventListener('DOMContentLoaded', () => {
     // Настройка обработчиков событий
-    elements.playButton.addEventListener('click', () => showAd(startGame));
-    elements.tryAgainButton.addEventListener('click', () => showAd(startGame));
+    elements.playButton.addEventListener('click', () => showFullscreenAd(startGame));
+    elements.tryAgainButton.addEventListener('click', () => showFullscreenAd(startGame));
     elements.mainMenuButton.addEventListener('click', () => showScreen(elements.mainMenu));
     elements.extraAttemptsButton.addEventListener('click', addExtraAttempts);
 
     // Инициализация SDK и запуск игры
     initOKSDK().then(() => {
-        showScreen(elements.mainMenu);
+        // Показываем рекламу при старте игры
+        showFullscreenAd(() => {
+            showScreen(elements.mainMenu);
+        });
     });
 });
