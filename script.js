@@ -23,8 +23,8 @@ function initOKSDK() {
     return new Promise((resolve) => {
         if (typeof OKSDK !== 'undefined') {
             OKSDK.init({
-                appId: '512002105676',  // Замените на реальный ID
-                appKey: 'CBAKMODLEBABABABA'  // Замените на реальный ключ
+                appId: '512002430595',  // Замените на реальный ID
+                appKey: 'CEIHBKLGDIHBABABA'  // Замените на реальный ключ
             });
             console.log('OK SDK успешно инициализирован');
             resolve(true);
